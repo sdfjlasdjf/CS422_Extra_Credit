@@ -1,1 +1,45 @@
+module FUN-UNTYPED
+  imports FUN-UNTYPED-COMMON
+  imports FUN-UNTYPED-MACROS
+  imports DOMAINS
+
+  configuration <T color="yellow">
+                  <k color="green"> $PGM:Exp </k>
+                  <env color="violet"> .Map </env>
+                  <store color="white"> .Map </store>
+                </T>
+
+  syntax Exp ::= "let*" Bindings "in" Exp  // CHANGED: Added let* syntax
+
+  // ... existing rules for let, letrec, etc. remain unchanged ...
+
+  // If there are no bindings, let* acts like returning E directly:
+  rule <k> let* .Bindings in E => E ~> setEnv(Rho) ...</k>
+       <env> Rho </env>
+
+  // If there is at least one binding X=E0 and possibly others, we:
+  // 1. Evaluate E0
+  // 2. Bind its value to X
+  // 3. Continue with the rest of the bindings
+  rule <k> let* X:Name=E0 and Bs in E
+        => E0 ~> bindOne(X) ~> let*(Bs,E) ...</k>
+
+  // CHANGED: Introduce helper syntax to process let* bindings one by one
+  syntax KItem ::= let*(Bindings,Exp) | bindOne(Name)
+
+  // When we finish with all bindings, just proceed with E:
+  rule <k> let*(.Bindings,E) => E ...</k>
+
+  // For each binding X=E0, we already evaluated E0 above and used bindOne(X):
+  // Once E0 is a value, we bind it and continue with the next bindings:
+  rule <k> let*(X:Name=E0 and Bs,E)
+        => E0 ~> bindOne(X) ~> let*(Bs,E) ...</k>
+
+  // The bindOne(X) operation takes a value and binds it to X in the environment:
+  rule <k> V:Val ~> bindOne(X) => .K ...</k>
+       <env> Rho => Rho[X <- !L:Int] </env>
+       <store> ... .Map => !L |-> V ...</store>
+
+  // ... rest of the definition unchanged ...
+endmodule
 
